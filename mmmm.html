@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منبه مواعيد الأدوية</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        input, textarea, button {
+            display: block;
+            width: 80%;
+            margin: 10px auto;
+            padding: 10px;
+        }
+        textarea {
+            height: 80px;
+            resize: none;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .patient-container {
+            background: white;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 5px #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>منبه مواعيد الأدوية</h1>
+
+    <label>اسم ولقب المريض:</label>
+    <input type="text" id="patientName" placeholder="أدخل اسم ولقب المريض">
+    
+    <label>أسماء الأدوية (كل دواء في سطر جديد):</label>
+    <textarea id="medicineNames" placeholder="أدخل أسماء الأدوية"></textarea>
+    
+    <label>موعد الدواء:</label>
+    <input type="datetime-local" id="medicineTime">
+    
+    <button onclick="addMedicine()">إضافة الدواء</button>
+
+    <h2>قائمة المرضى وأدويتهم</h2>
+    <div id="patientList"></div>
+
+    <!-- صوت المنبه -->
+    <audio id="alarmSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+
+    <script>
+        let patients = [];
+
+        function addMedicine() {
+            let patientName = document.getElementById("patientName").value.trim();
+            let medicineNames = document.getElementById("medicineNames").value.trim();
+            let medicineTime = document.getElementById("medicineTime").value;
+
+            if (!patientName || !medicineNames || !medicineTime) {
+                alert("يرجى إدخال جميع البيانات");
+                return;
+            }
+
+            let medicines = medicineNames.split("\n").map(name => name.trim()).filter(name => name !== "");
+
+            let medicineData = { patientName, medicines, medicineTime };
+            patients.push(medicineData);
+            updateList();
+            scheduleAlarm(medicineData);
+        }
+
+        function updateList() {
+            let patientList = document.getElementById("patientList");
+            patientList.innerHTML = "";
+
+            patients.forEach((medicine, index) => {
+                let div = document.createElement("div");
+                div.className = "patient-container";
+                div.innerHTML = `<h3>${medicine.patientName}</h3>
+                                <p>🩺 الأدوية:</p>
+                                <ul>${medicine.medicines.map(med => `<li>${med}</li>`).join("")}</ul>
+                                <p>⏰ الموعد: ${new Date(medicine.medicineTime).toLocaleString()}</p>
+                                <button onclick="deleteMedicine(${index})">حذف</button>`;
+                patientList.appendChild(div);
+            });
+        }
+
+        function deleteMedicine(index) {
+            patients.splice(index, 1);
+            updateList();
+        }
+
+        function scheduleAlarm(medicineData) {
+            let now = new Date().getTime();
+            let medicineTime = new Date(medicineData.medicineTime).getTime();
+            let delay = medicineTime - now;
+
+            if (delay > 0) {
+                setTimeout(() => {
+                    playAlarm(medicineData);
+                }, delay);
+            }
+        }
+
+        function playAlarm(medicineData) {
+            let alarmSound = document.getElementById("alarmSound");
+            alarmSound.play();
+            alert(`🚨 تنبيه: حان وقت تناول الأدوية للمريض ${medicineData.patientName}!`);
+
+            if (Notification.permission === "granted") {
+                new Notification(`🚨 تنبيه لـ ${medicineData.patientName}`, {
+                    body: `حان وقت تناول الأدوية:\n${medicineData.medicines.join("\n")}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/3209/3209265.png"
+                });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification(`🚨 تنبيه لـ ${medicineData.patientName}`, {
+                            body: `حان وقت تناول الأدوية:\n${medicineData.medicines.join("\n")}`,
+                            icon: "https://cdn-icons-png.flaticon.com/512/3209/3209265.png"
+                        });
+                    }
+                });
+            }
+        }
+
+        if ('Notification' in window) {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>
